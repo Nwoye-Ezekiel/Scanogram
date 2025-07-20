@@ -1,0 +1,30 @@
+{
+  "name": "game",
+  "version": "1.0.0",
+  "main": "index.js",
+  "license": "MIT",
+  "private": true,
+  "workspaces": [
+    "server",
+    "client"
+  ],
+  "scripts": {
+    "prepare": "husky install",
+    "dev": "concurrently \"yarn workspace server dev\" \"yarn workspace client dev\"",
+    "build": "concurrently \"yarn workspace server build\" \"yarn workspace client build\"",
+    "preview": "concurrently \"yarn workspace server preview\" \"yarn workspace client preview\"",
+    "start": "concurrently \"yarn workspace server start\" \"yarn workspace client start\"",
+    "lint": "concurrently \"yarn workspace server lint\" \"yarn workspace client lint\"",
+    "type-check": "concurrently \"yarn workspace server type-check\" \"yarn workspace client type-check\"",
+    "format": "concurrently \"yarn workspace server format\" \"yarn workspace client format\""
+  },
+  "devDependencies": {
+    "concurrently": "^9.2.0",
+    "lint-staged": "^15.1.0",
+    "husky": "^8.0.3"
+  },
+  "lint-staged": {
+    "*.{js,ts,tsx}": "npm run lint",
+    "*.{js,ts,tsx,css}": "npm run format"
+  }
+}

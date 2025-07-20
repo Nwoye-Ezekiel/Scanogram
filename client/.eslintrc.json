@@ -1,0 +1,21 @@
+{
+  "root": true,
+  "plugins": ["@typescript-eslint"],
+  "parser": "@typescript-eslint/parser",
+  "env": {
+    "browser": true,
+    "es2020": true
+  },
+  "ignorePatterns": ["dist", ".eslintrc.json"],
+  "extends": [
+    "eslint:recommended",
+    "plugin:@typescript-eslint/recommended",
+    "plugin:react-hooks/recommended",
+    "prettier"
+  ],
+  "rules": {
+    "no-var": 2,
+    "no-console": 2,
+    "@typescript-eslint/no-explicit-any": 0
+  }
+}

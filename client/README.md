@@ -1,0 +1,1 @@
+# React + TypeScript + Vite + Material UI + Tailwind CSS + Husky + Lint-Staged + Prettier + ESLint

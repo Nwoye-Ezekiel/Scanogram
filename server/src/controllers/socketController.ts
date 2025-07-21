@@ -55,11 +55,11 @@ export const setupSocketHandlers = (io: Server): void => {
 
     gameService.connectPlayer(connection)
 
-    io.emit('gameStats', gameService.getAppOverview())
+    io.emit('gameStats', gameService.getGameState())
 
     console.log(
       'GAME STATE: Initial Connection',
-      util.inspect(gameService.getGateState(), { depth: null, colors: true })
+      util.inspect(gameService.getGameState(), { depth: null, colors: true })
     )
 
     ////////////////////////////////
@@ -67,22 +67,22 @@ export const setupSocketHandlers = (io: Server): void => {
     socket.on('createRoom', (config: RoomConfig) => {
       gameService.createRoom(connection, config)
 
-      io.emit('gameStats', gameService.getAppOverview())
+      io.emit('gameStats', gameService.getGameState())
 
       console.log(
         'GAME STATE: Create Room',
-        util.inspect(gameService.getGateState(), { depth: null, colors: true })
+        util.inspect(gameService.getGameState(), { depth: null, colors: true })
       )
     })
 
     socket.on('joinRoom', (roomId: string) => {
       gameService.addPlayerToRoom(connection, roomId, false)
 
-      io.emit('gameStats', gameService.getAppOverview())
+      io.emit('gameStats', gameService.getGameState())
 
       console.log(
         'GAME STATE: Join Room',
-        util.inspect(gameService.getGateState(), { depth: null, colors: true })
+        util.inspect(gameService.getGameState(), { depth: null, colors: true })
       )
     })
 
@@ -91,7 +91,7 @@ export const setupSocketHandlers = (io: Server): void => {
 
     //   console.log(
     //     'GAME STATE: Sent Message',
-    //     util.inspect(gameService.getGateState(), { depth: null, colors: true })
+    //     util.inspect(gameService.getGameState(), { depth: null, colors: true })
     //   )
     // })
 
@@ -109,11 +109,11 @@ export const setupSocketHandlers = (io: Server): void => {
 
     //   io.to(room.roomId).emit('roomPlayers', gameService.getPlayersByPlayerIds(room.players))
 
-    //   io.emit('gameStats', gameService.getAppOverview())
+    //   io.emit('gameStats', gameService.getGameState())
 
     //   console.log(
     //     'GAME STATE: ',
-    //     util.inspect(gameService.getGateState(), {
+    //     util.inspect(gameService.getGameState(), {
     //       depth: null,
     //       colors: true,
     //     })
@@ -126,24 +126,24 @@ export const setupSocketHandlers = (io: Server): void => {
 
     //   gameService.startGame(roomId)
     //   io.to(room.roomId).emit('gameStatus', room.isGameStarted)
-    //   io.emit('gameStats', gameService.getAppOverview())
+    //   io.emit('gameStats', gameService.getGameState())
 
     //   console.log(
     //     'GAME STATE: ',
-    //     util.inspect(gameService.getGateState(), { depth: null, colors: true })
+    //     util.inspect(gameService.getGameState(), { depth: null, colors: true })
     //   )
     // })
 
-    // socket.on('disconnect', () => {
-    //   gameService.disconnectPlayer(connection)
+    socket.on('disconnect', () => {
+      gameService.disconnectPlayer(connection)
 
-    //   io.emit('gameStats', gameService.getAppOverview())
+      io.emit('gameStats', gameService.getGameState())
 
-    //   console.log(
-    //     'GAME STATE: Player Disconnected',
-    //     util.inspect(gameService.getGateState(), { depth: null, colors: true })
-    //   )
-    // })
+      console.log(
+        'GAME STATE: Player Disconnected',
+        util.inspect(gameService.getGameState(), { depth: null, colors: true })
+      )
+    })
   })
 
   io.on('error', (error) => {

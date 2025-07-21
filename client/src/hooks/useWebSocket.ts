@@ -33,7 +33,6 @@ export function useWebSocket() {
       setIsLoading(false)
       setIsConnected(true)
       setError('')
-      setPlayerId(socket.id ?? 'Ezekiel')
     })
 
     socket.on('disconnect', () => {

@@ -19,8 +19,8 @@ export interface Device {
   os: string
   type: string
   browser: string
-  createdAt: Date
-  lastSeenAt: Date
+  createdAt: string
+  lastSeenAt: string
   playerId: string
   userAgent: string
   isActive: boolean
@@ -29,8 +29,8 @@ export interface Device {
 export interface ServerPlayer {
   id: string
   name: string
-  createdAt: Date
-  lastSeenAt: Date
+  createdAt: string
+  lastSeenAt: string
   isOnline: boolean
 }
 
@@ -46,8 +46,8 @@ export interface RoomConfig {
 
 export interface ServerRoom extends RoomConfig {
   id: string
-  createdAt: Date
-  updatedAt: Date
+  createdAt: string
+  updatedAt: string
   isGameStarted: boolean
 }
 
@@ -57,11 +57,11 @@ export interface ClientRoom extends ServerRoom {
 }
 
 export interface RoomMember {
-  joinedAt: Date
+  joinedAt: string
   roomId: string
   isAdmin: boolean
   playerId: string
-  lastSeenAt: Date
+  lastSeenAt: string
   isActive: boolean
 }
 
@@ -70,7 +70,7 @@ export interface RoomMessage {
   id: string
   roomId: string
   message: string
-  createdAt: Date
+  createdAt: string
   playerId: string
 }
 

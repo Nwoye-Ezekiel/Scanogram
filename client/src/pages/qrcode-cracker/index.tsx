@@ -185,7 +185,7 @@ class MazeGenerator {
   }
 }
 
-const QrCodeCracker = ({ socket, roomCode }: { socket: Socket; roomCode: string }) => {
+const QrCodeCracker = ({ socket, roomId }: { socket: Socket; roomId: string }) => {
   const [position, setPosition] = useState<Position>({ x: 20, y: 20 })
   const [velocity, setVelocity] = useState<Velocity>({ x: 0, y: 0 })
   const [gameStatus, setGameStatus] = useState('Navigate to the green finish line!')
@@ -391,7 +391,7 @@ const QrCodeCracker = ({ socket, roomCode }: { socket: Socket; roomCode: string 
       }
 
       socket.emit('playerUpdate', {
-        roomCode,
+        roomId,
         playerId: playerId.current,
         state: playerState,
       })
@@ -402,7 +402,7 @@ const QrCodeCracker = ({ socket, roomCode }: { socket: Socket; roomCode: string 
       lastEmittedVelocity.current = { ...newVelocity }
       pendingEmit.current = false
     },
-    [EMIT_RATE_MS, socket, roomCode]
+    [EMIT_RATE_MS, socket, roomId]
   )
 
   // Separate throttled emit function for pending updates
@@ -455,7 +455,7 @@ const QrCodeCracker = ({ socket, roomCode }: { socket: Socket; roomCode: string 
       if (checkFinishLine(newPosition) && !winner) {
         setWinner(playerId.current)
         setGameStatus('You won the race!')
-        socket.emit('gameWon', { roomCode, playerId: playerId.current })
+        socket.emit('gameWon', { roomId, playerId: playerId.current })
       }
 
       animationFrameRef.current = requestAnimationFrame(gameLoop)
@@ -476,7 +476,7 @@ const QrCodeCracker = ({ socket, roomCode }: { socket: Socket; roomCode: string 
     emitPlayerUpdate,
     calculateMovementWithSliding,
     socket,
-    roomCode,
+    roomId,
   ])
 
   // Joystick handlers

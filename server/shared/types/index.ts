@@ -1,51 +1,84 @@
 import { Socket, Server } from 'socket.io'
 
-export interface RoomConfig {
-  roomName: string
-  maxPlayers: number
-}
-
-export interface RoomPlayer {
+// 🔌 Connection Layer
+export interface ServerConnection {
+  io: Server
+  socket: Socket
   playerId: string
-  playerName: string
-  active: boolean
-  isRoomAdmin: boolean
 }
 
-export interface Player {
-  playerName: string
-  playerId: string
-  room: Room | null
-  isRoomAdmin: boolean
-}
-
-export interface Message {
-  id: string
-  playerId: string
-  message: string
-  timestamp: number
-}
-
-export interface Room {
-  roomId: string
-  roomCode: string
-  roomName: string
-  maxPlayers: number
-  players: Map<string, RoomPlayer>
-  isGameStarted: boolean
-}
-
-export interface GameState {
-  rooms: Map<string, Room>
-  players: Map<string, Player>
-}
-
-export interface GameStats {
+// 📊 App Stats / Overview
+export interface AppOverview {
   totalRooms: number
   totalPlayers: number
 }
 
-export interface Connection {
-  socket: Socket
-  io: Server
+// 👤 Players and Devices
+export interface Device {
+  id: string
+  os: string
+  type: string
+  browser: string
+  createdAt: Date
+  lastSeenAt: Date
+  playerId: string
+  userAgent: string
+  isActive: boolean
+}
+
+export interface ServerPlayer {
+  id: string
+  name: string
+  createdAt: Date
+  lastSeenAt: Date
+  isOnline: boolean
+}
+
+export interface ClientPlayer extends ServerPlayer {
+  devices: Device[]
+}
+
+// 🏠 Rooms and Members
+export interface RoomConfig {
+  name: string
+  maxPlayers: number
+}
+
+export interface ServerRoom extends RoomConfig {
+  id: string
+  createdAt: Date
+  updatedAt: Date
+  isGameStarted: boolean
+}
+
+export interface ClientRoom extends ServerRoom {
+  members: RoomMember[]
+  messages: RoomMessage[]
+}
+
+export interface RoomMember {
+  joinedAt: Date
+  roomId: string
+  isAdmin: boolean
+  playerId: string
+  lastSeenAt: Date
+  isActive: boolean
+}
+
+// 💬 Messaging
+export interface RoomMessage {
+  id: string
+  roomId: string
+  message: string
+  createdAt: Date
+  playerId: string
+}
+
+// 🧠 Server State
+export interface ServerGameState {
+  devices: Map<string, Device>
+  rooms: Map<string, ServerRoom>
+  players: Map<string, ServerPlayer>
+  roomMembers: Map<string, RoomMember>
+  roomMessages: Map<string, RoomMessage>
 }

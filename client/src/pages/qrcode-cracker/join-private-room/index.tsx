@@ -4,7 +4,7 @@ import { useStore } from 'src/store'
 
 export default function JoinPrivateRoom() {
   const { joinRoom } = useRoom()
-  const [roomCode, setRoomCode] = React.useState('')
+  const [roomId, setRoomId] = React.useState('')
   const [message, setMessage] = React.useState('')
   const [allMessages, setAllMessages] = React.useState<
     { user: string; message: string; createdAt: string; socketId: string }[]
@@ -56,7 +56,7 @@ export default function JoinPrivateRoom() {
   }, [allMessages])
 
   const handleJoinRoom = () => {
-    joinRoom(roomCode)
+    joinRoom(roomId)
   }
 
   return (
@@ -67,8 +67,8 @@ export default function JoinPrivateRoom() {
         {/* Room Code Input */}
         <div className="flex justify-center">
           <input
-            value={roomCode}
-            onChange={(e) => setRoomCode(e.target.value)}
+            value={roomId}
+            onChange={(e) => setRoomId(e.target.value)}
             type="text"
             placeholder="Enter room code"
             className="w-fit h-fit bg-gray-100 p-2 rounded"

@@ -1,13 +1,14 @@
 import { useStore } from 'src/store'
 import { useRoom } from 'hooks/useRoom'
 import { useNavigate, useParams } from 'react-router-dom'
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import QrCodeCracker from '..'
 
 export default function PrivateRoomLobby() {
   const { joinRoom } = useRoom()
-  const { roomCode } = useParams()
+  const { roomId } = useParams()
   const error = useStore((state) => state.error)
+  const rooms = useStore((state) => state.rooms)
   const player = useStore((state) => state.player)
   const socket = useStore((state) => state.socket)
 
@@ -18,6 +19,16 @@ export default function PrivateRoomLobby() {
   const navigate = useNavigate()
   const messagesEndRef = useRef<HTMLDivElement | null>(null)
 
+  const activeRoom = useMemo(() => {
+    return Array.from(rooms.values()).find((room) =>
+      room.members.find((member) => member.playerId === player?.id && member.isActive)
+    )
+  }, [rooms, player])
+
+  const isActiveRoomAdmin = useMemo(() => {
+    return activeRoom?.members.some((member) => member.playerId === player?.id && member.isAdmin)
+  }, [activeRoom, player])
+
   // Send message to server
   const sendMessage = (message: string) => {
     socket?.emit('sendMessage', message)
@@ -27,26 +38,26 @@ export default function PrivateRoomLobby() {
         message,
         playerId: socket?.id || '',
         createdAt: new Date().toISOString(),
-        playerName: player?.playerName || 'Unknown',
+        playerName: player?.name || 'Unknown',
       },
     ])
     setMessage('')
   }
 
   const leaveRoom = () => {
-    socket?.emit('leaveRoom', roomCode)
+    socket?.emit('leaveRoom', roomId)
     navigate('/')
   }
 
   const startGame = () => {
-    socket?.emit('startGame', roomCode)
+    socket?.emit('startGame', roomId)
   }
 
   useEffect(() => {
-    if (roomCode && !player?.room) {
-      joinRoom(roomCode)
+    if (roomId && !activeRoom) {
+      joinRoom(roomId)
     }
-  }, [roomCode, player])
+  }, [roomId, player])
 
   // Listen for incoming messages from server
   useEffect(() => {
@@ -100,68 +111,66 @@ export default function PrivateRoomLobby() {
         <div>
           <h2>Error: {error}</h2>
         </div>
+      ) : activeRoom?.isGameStarted ? (
+        <div>{roomId && socket && <QrCodeCracker roomId={roomId} socket={socket} />}</div>
       ) : (
-        player &&
-        (player.room?.isGameStarted ? (
-          <div>{roomCode && socket && <QrCodeCracker roomCode={roomCode} socket={socket} />}</div>
-        ) : (
+        <div>
           <div>
-            <div>
-              <h3>List:</h3>
-              {Array.from(player.room?.players.values() ?? []).map((player) => (
-                <div className="flex gap-2" key={player.playerId}>
-                  <span>{player.playerName}</span>
-                  <span>{player.active ? 'Active' : 'Inactive'}</span>
+            <h3>List:</h3>
+            {activeRoom?.members.map((member) => (
+              <div key={member.playerId} className="flex gap-2">
+                <span>{member.playerId}</span>
+                <span>{member.isAdmin ? 'Admin' : 'Member'}</span>
+                <span>{member.isActive ? 'Active' : 'Inactive'}</span>
+              </div>
+            ))}
+          </div>
+
+          <div className="relative w-80 h-[20rem] border border-red-500 p-2 flex flex-col overflow-hidden">
+            {/* Messages */}
+            <div className="flex flex-col flex-1 overflow-y-auto space-y-2 pr-1">
+              {allMessages.map((msg, index) => (
+                <div
+                  key={index}
+                  className={`text-white p-2 rounded w-fit max-w-[60%] break-words ${
+                    msg.playerId === socket?.id
+                      ? 'ml-auto h-fit bg-orange-400'
+                      : 'mr-auto bg-blue-700'
+                  }`}
+                >
+                  <span className="font-semibold">{msg.playerName}</span>: {msg.message}
                 </div>
               ))}
+              <div ref={messagesEndRef} />
             </div>
 
-            <div className="relative w-80 h-[20rem] border border-red-500 p-2 flex flex-col overflow-hidden">
-              {/* Messages */}
-              <div className="flex flex-col flex-1 overflow-y-auto space-y-2 pr-1">
-                {allMessages.map((msg, index) => (
-                  <div
-                    key={index}
-                    className={`text-white p-2 rounded w-fit max-w-[60%] break-words ${
-                      msg.playerId === socket?.id
-                        ? 'ml-auto h-fit bg-orange-400'
-                        : 'mr-auto bg-blue-700'
-                    }`}
-                  >
-                    <span className="font-semibold">{msg.playerName}</span>: {msg.message}
-                  </div>
-                ))}
-                <div ref={messagesEndRef} />
-              </div>
-
-              {/* Input */}
-              <div className="flex h-10 mt-2">
-                <input
-                  value={message}
-                  onChange={(e) => setMessage(e.target.value)}
-                  type="text"
-                  placeholder="Enter a message"
-                  className="flex-1 bg-gray-100 px-2 rounded-l outline-none"
-                />
-                <button
-                  onClick={() => sendMessage(message)}
-                  className="bg-red-500 text-white px-4 rounded-r"
-                >
-                  Send
-                </button>
-              </div>
-
-              <button className="bg-blue-500 text-white px-4 rounded-r" onClick={leaveRoom}>
-                Leave Room
+            {/* Input */}
+            <div className="flex h-10 mt-2">
+              <input
+                value={message}
+                onChange={(e) => setMessage(e.target.value)}
+                type="text"
+                placeholder="Enter a message"
+                className="flex-1 bg-gray-100 px-2 rounded-l outline-none"
+              />
+              <button
+                onClick={() => sendMessage(message)}
+                className="bg-red-500 text-white px-4 rounded-r"
+              >
+                Send
               </button>
-              {player.isRoomAdmin && (
-                <button className="bg-blue-500 text-white px-4 rounded-r" onClick={startGame}>
-                  Start Game
-                </button>
-              )}
             </div>
+
+            <button className="bg-blue-500 text-white px-4 rounded-r" onClick={leaveRoom}>
+              Leave Room
+            </button>
+            {isActiveRoomAdmin && (
+              <button className="bg-blue-500 text-white px-4 rounded-r" onClick={startGame}>
+                Start Game
+              </button>
+            )}
           </div>
-        ))
+        </div>
       )}
     </div>
   )

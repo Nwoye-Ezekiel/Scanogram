@@ -1,28 +1,37 @@
+import { useStore } from 'src/store'
 import { useRoom } from 'hooks/useRoom'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 
 export default function CreatePrivateRoom() {
   const { createRoom } = useRoom()
   const [name, setName] = useState('')
   const navigate = useNavigate()
+  const socket = useStore((state) => state.socket)
   const [maxPlayers, setMaxPlayers] = useState('2')
 
-  const handleCreateRoom = async () => {
+  const handleCreateRoom = () => {
     if (Number(maxPlayers) < 2) {
       alert('Minimum 2 players required for multiplayer.')
       return
     }
-    const { status, data: roomCode } = await createRoom({
-      roomName: name,
-      maxPlayers: Number(maxPlayers),
-    })
-    if (status === 'success') {
-      navigate(`/game/${roomCode}/lobby`)
-    } else {
-      alert('Failed to create room')
-    }
+
+    createRoom({ name, maxPlayers: Number(maxPlayers) })
   }
+
+  useEffect(() => {
+    if (!socket) return
+
+    const handleJoinRoom = (roomId: string) => {
+      navigate(`/game/${roomId}/lobby`)
+    }
+
+    socket.on('roomCreated', handleJoinRoom)
+
+    return () => {
+      socket.off('roomCreated', handleJoinRoom)
+    }
+  }, [socket])
 
   return (
     <div className="flex flex-col w-fit">

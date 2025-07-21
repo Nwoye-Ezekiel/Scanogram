@@ -43,16 +43,19 @@ export function wrapIoEmit(io: Server) {
 
 export const setupSocketHandlers = (io: Server): void => {
   wrapIoEmit(io)
+
   io.on('connection', (socket: Socket) => {
     wrapSocketEmit(socket)
 
-    const connection = { io, socket }
+    const playerId = (socket.handshake.query.playerId ?? '') as string
 
-    ///////////////////////////////
+    socket.data.playerId = playerId
+
+    const connection = { io, socket, playerId }
 
     gameService.connectPlayer(connection)
 
-    io.emit('gameStats', gameService.getAppState())
+    io.emit('gameStats', gameService.getAppOverview())
 
     console.log(
       'GAME STATE: Initial Connection',
@@ -61,10 +64,10 @@ export const setupSocketHandlers = (io: Server): void => {
 
     ////////////////////////////////
 
-    socket.on('createRoom', (config: RoomConfig, callback: (response: any) => void) => {
-      gameService.createRoom(connection, config, callback)
+    socket.on('createRoom', (config: RoomConfig) => {
+      gameService.createRoom(connection, config)
 
-      io.emit('gameStats', gameService.getAppState())
+      io.emit('gameStats', gameService.getAppOverview())
 
       console.log(
         'GAME STATE: Create Room',
@@ -72,10 +75,10 @@ export const setupSocketHandlers = (io: Server): void => {
       )
     })
 
-    socket.on('joinRoom', (roomCode: string) => {
-      gameService.addPlayerToRoom(connection, roomCode)
+    socket.on('joinRoom', (roomId: string) => {
+      gameService.addPlayerToRoom(connection, roomId, false)
 
-      io.emit('gameStats', gameService.getAppState())
+      io.emit('gameStats', gameService.getAppOverview())
 
       console.log(
         'GAME STATE: Join Room',
@@ -83,17 +86,17 @@ export const setupSocketHandlers = (io: Server): void => {
       )
     })
 
-    socket.on('sendMessage', (message: string) => {
-      gameService.sendMessage(connection, message)
+    // socket.on('sendMessage', (message: string) => {
+    //   gameService.sendMessage(connection, message)
 
-      console.log(
-        'GAME STATE: Sent Message',
-        util.inspect(gameService.getGateState(), { depth: null, colors: true })
-      )
-    })
+    //   console.log(
+    //     'GAME STATE: Sent Message',
+    //     util.inspect(gameService.getGateState(), { depth: null, colors: true })
+    //   )
+    // })
 
-    // socket.on('leaveRoom', (roomCode: string) => {
-    //   const room = gameService.getRoomByCode(roomCode)
+    // socket.on('leaveRoom', (roomId: string) => {
+    //   const room = gameService.getRoomByCode(roomId)
     //   const player = gameService.getPlayerByPlayerId(socket.id)
 
     //   if (!room || !player) return
@@ -106,7 +109,7 @@ export const setupSocketHandlers = (io: Server): void => {
 
     //   io.to(room.roomId).emit('roomPlayers', gameService.getPlayersByPlayerIds(room.players))
 
-    //   io.emit('gameStats', gameService.getAppState())
+    //   io.emit('gameStats', gameService.getAppOverview())
 
     //   console.log(
     //     'GAME STATE: ',
@@ -117,13 +120,13 @@ export const setupSocketHandlers = (io: Server): void => {
     //   )
     // })
 
-    // socket.on('startGame', (roomCode: string) => {
-    //   const room = gameService.getRoomByCode(roomCode)
+    // socket.on('startGame', (roomId: string) => {
+    //   const room = gameService.getRoomByCode(roomId)
     //   if (!room) return
 
-    //   gameService.startGame(roomCode)
+    //   gameService.startGame(roomId)
     //   io.to(room.roomId).emit('gameStatus', room.isGameStarted)
-    //   io.emit('gameStats', gameService.getAppState())
+    //   io.emit('gameStats', gameService.getAppOverview())
 
     //   console.log(
     //     'GAME STATE: ',
@@ -131,16 +134,16 @@ export const setupSocketHandlers = (io: Server): void => {
     //   )
     // })
 
-    socket.on('disconnect', () => {
-      gameService.disconnectPlayer(connection)
+    // socket.on('disconnect', () => {
+    //   gameService.disconnectPlayer(connection)
 
-      io.emit('gameStats', gameService.getAppState())
+    //   io.emit('gameStats', gameService.getAppOverview())
 
-      console.log(
-        'GAME STATE: Player Disconnected',
-        util.inspect(gameService.getGateState(), { depth: null, colors: true })
-      )
-    })
+    //   console.log(
+    //     'GAME STATE: Player Disconnected',
+    //     util.inspect(gameService.getGateState(), { depth: null, colors: true })
+    //   )
+    // })
   })
 
   io.on('error', (error) => {

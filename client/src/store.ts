@@ -1,46 +1,35 @@
 import { create } from 'zustand'
 import { Socket } from 'socket.io-client'
-import { Player, Room } from 'shared/types'
 import { immer } from 'zustand/middleware/immer'
+import { ClientPlayer, ClientRoom } from 'shared/types'
 
 interface InitialState {
-  // Initial state properties
   error: string
   isLoading: boolean
   isConnected: boolean
   socket: Socket | null
-
-  // Player and room state
-  player: Player | null
-
-  // Game statistics
+  player: ClientPlayer | null
+  rooms: Map<string, ClientRoom>
   totalRooms: number
   totalPlayers: number
-  totalActiveGames: number
 }
 
-// Store state type
 interface State extends InitialState {}
 
-// Store actions type
 type Actions = {
   actions: {
     reset: () => void
-    updateRoom: (room: Room) => void
+    playerRooms: (rooms: ClientRoom[]) => void
+    updateRoom: (room: ClientRoom) => void
     setError: (error: string) => void
-    updatePlayer: (player: Player) => void
+    connectPlayer: (player: ClientPlayer) => void
     setIsLoading: (isLoading: boolean) => void
     setIsConnected: (isConnected: boolean) => void
     setSocket: (socket: Socket | null) => void
-    setGameStats: (gameStats: {
-      totalRooms: number
-      totalPlayers: number
-      totalActiveGames: number
-    }) => void
+    setGameStats: (gameStats: { totalRooms: number; totalPlayers: number }) => void
   }
 }
 
-// Initial state
 const initialState: InitialState = {
   error: '',
   totalRooms: 0,
@@ -48,11 +37,10 @@ const initialState: InitialState = {
   isLoading: true,
   isConnected: false,
   totalPlayers: 0,
-  totalActiveGames: 0,
   socket: null,
+  rooms: new Map<string, ClientRoom>(),
 }
 
-// Create the store
 export const useStore = create<State & Actions>()(
   immer((set) => ({
     ...initialState,
@@ -76,7 +64,6 @@ export const useStore = create<State & Actions>()(
         set((state) => {
           state.totalRooms = gameStats.totalRooms
           state.totalPlayers = gameStats.totalPlayers
-          state.totalActiveGames = gameStats.totalActiveGames
         })
       },
       setSocket: (socket) => {
@@ -84,19 +71,19 @@ export const useStore = create<State & Actions>()(
           ;(state as any).socket = socket
         })
       },
-      updatePlayer: (player: Player) => {
+      connectPlayer: (player: ClientPlayer) => {
         set((state) => {
           state.player = player
         })
       },
-      updateRoom: (room: Room) => {
+      playerRooms: (rooms) => {
         set((state) => {
-          if (state.player) {
-            state.player = {
-              ...state.player,
-              room: room,
-            }
-          }
+          state.rooms = new Map(rooms.map((room) => [room.id, room]))
+        })
+      },
+      updateRoom: (room) => {
+        set((state) => {
+          state.rooms.set(room.id, room)
         })
       },
       reset: () => {

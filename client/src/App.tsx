@@ -46,8 +46,8 @@ function App() {
               <Route path="create" element={<CreatePrivateRoom />} />
               <Route path="join" element={<JoinPrivateRoom />} />
               <Route path="public" element={<JoinPublicRoom />} />
-              <Route path=":roomCode/lobby" element={<PrivateRoomLobby />} />
-              {/* <Route path=":roomCode/play" element={<QrCodeCracker />} /> */}
+              <Route path=":roomId/lobby" element={<PrivateRoomLobby />} />
+              {/* <Route path=":roomId/play" element={<QrCodeCracker />} /> */}
             </Route>
             <Route path="*" element={<PageNotFound />} />
           </Routes>

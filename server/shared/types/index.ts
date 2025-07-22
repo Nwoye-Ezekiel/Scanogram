@@ -5,6 +5,7 @@ export interface ServerConnection {
   io: Server
   socket: Socket
   playerId: string
+  device: ClientDevice
 }
 
 // 📊 App Stats / Overview
@@ -33,7 +34,7 @@ export interface ServerPlayer {
   name: string
   createdAt: string
   lastSeenAt: string
-  isOnline: boolean
+  isActive: boolean
 }
 
 export interface ClientPlayer extends ServerPlayer {
@@ -78,10 +79,10 @@ export interface RoomMessage {
 
 // 🧠 Server State
 export interface ServerGameState {
-  devices: Map<string, ServerDevice>
+  devices: Map<string, ServerDevice[]>
   rooms: Map<string, ServerRoom>
   players: Map<string, ServerPlayer>
   roomMembers: Map<string, RoomMember>
   roomMessages: Map<string, RoomMessage>
-  playerConnections: Map<string, ServerDevice>
+  playerConnections: Map<string, Set<string>>
 }

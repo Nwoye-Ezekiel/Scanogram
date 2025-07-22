@@ -1,17 +1,15 @@
 import {
   AppOverview,
-  ClientPlayer,
-  Device,
   RoomConfig,
   RoomMember,
   RoomMessage,
   ServerConnection,
+  ServerDevice,
   ServerGameState,
   ServerPlayer,
   ServerRoom,
 } from 'shared/types'
-
-import { v4 as uuidv4 } from 'uuid'
+import { randomUUID } from 'crypto'
 
 const { randomInt } = require('crypto')
 
@@ -36,6 +34,24 @@ function generateRoomCode() {
 //   usedCodes.delete(code) // Call when room is closed
 // }
 
+export const removePlayerData = (playerId: string): void => {
+  // Remove all player connections (socket IDs)
+  gameState.playerConnections.delete(playerId)
+
+  // Remove player from players map
+  gameState.players.delete(playerId)
+
+  // Remove player's devices
+  gameState.devices.delete(playerId)
+
+  // Remove room membership entries for player
+  for (const [roomId, member] of gameState.roomMembers.entries()) {
+    if (member.playerId === playerId) {
+      gameState.roomMembers.delete(roomId)
+    }
+  }
+}
+
 const getRoomMembersByPlayerId = (playerId: string) => {
   return Array.from(gameState.roomMembers.values()).filter((member) => member.playerId === playerId)
 }
@@ -54,10 +70,19 @@ const getRoomMessagesByRoomId = (roomId: string) => {
   return Array.from(gameState.roomMessages.values()).filter((message) => message.roomId === roomId)
 }
 
+const setDevicesToInactive = (playerId: string) => {
+  const devices = gameState.devices.get(playerId)
+  if (devices) {
+    for (const device of devices) {
+      device.isActive = false
+    }
+  }
+}
+
 const gameState: ServerGameState = {
-  devices: new Map<string, Device>(),
   rooms: new Map<string, ServerRoom>(),
   players: new Map<string, ServerPlayer>(),
+  devices: new Map<string, ServerDevice[]>(),
   roomMembers: new Map<string, RoomMember>(),
   roomMessages: new Map<string, RoomMessage>(),
   playerConnections: new Map<string, Set<string>>(),
@@ -70,31 +95,13 @@ export const getAppOverview = (): AppOverview => {
   }
 }
 
-// export const connectPlayer = (connection: ServerConnection): void => {
-//   const playerId = connection.playerId
-//   const playerExists = gameState.players.get(playerId)
-
-//   if (!playerExists) {
-//     console.warn(`No player found for ID: ${playerId}`)
-//     return
-//   }
-
-//   const connectedPlayed: ClientPlayer = {
-//     ...playerExists,
-//     isOnline: true,
-//     lastSeenAt: new Date().toISOString(),
-//     devices: [],
-//   }
-
-//   connection.socket.emit('playerConnected', connectedPlayed)
-// }
-
 const disconnectOtherSockets = (connection: ServerConnection, playerId: string) => {
-  const allSockets = gameState.playerConnections.get(playerId)
+  const playerConnections = gameState.playerConnections.get(playerId)
+  const playerDevices = gameState.devices.get(playerId)
 
-  if (!allSockets) return
+  if (!playerConnections || !playerDevices) return
 
-  for (const socketId of allSockets) {
+  for (const socketId of playerConnections) {
     if (socketId !== connection.socket.id) {
       const socket = connection.io.sockets.sockets.get(socketId)
 
@@ -108,54 +115,92 @@ const disconnectOtherSockets = (connection: ServerConnection, playerId: string) 
     }
   }
 
+  for (const device of playerDevices) {
+    if (device.id !== connection.device.id) {
+      device.isActive = false
+    }
+  }
+
   gameState.playerConnections.set(playerId, new Set([connection.socket.id]))
 }
 
 const handlePlayerConnections = (connection: ServerConnection, playerId: string) => {
-  let connections = gameState.playerConnections.get(playerId)
+  let playerConnections = gameState.playerConnections.get(playerId)
 
-  if (!connections) {
-    connections = new Set<string>()
-    gameState.playerConnections.set(playerId, connections)
+  if (!playerConnections) {
+    playerConnections = new Set<string>()
+    gameState.playerConnections.set(playerId, playerConnections)
   }
 
-  connections.add(connection.socket.id)
+  playerConnections.add(connection.socket.id)
 
   disconnectOtherSockets(connection, playerId)
 }
 
 export const connectPlayer = (connection: ServerConnection): void => {
   const now = new Date().toISOString()
-  const playerId = connection.playerId
-  const playerExists = gameState.players.get(playerId)
+  const { playerId } = connection
+  const { id: deviceId } = connection.device
 
-  let player: ClientPlayer
+  const existingPlayer = gameState.players.get(playerId)
+  const playerDevices = gameState.devices.get(playerId) ?? []
 
-  if (playerExists) {
+  const existingDevice = playerDevices.find((device) => device.id === deviceId)
+
+  let player: ServerPlayer
+  let device: ServerDevice
+
+  if (existingPlayer) {
     player = {
-      ...playerExists,
-      isOnline: true,
+      ...existingPlayer,
+      isActive: true,
       lastSeenAt: now,
-      devices: [],
     }
     gameState.players.set(playerId, player)
   } else {
-    const newPlayerId = uuidv4()
     player = {
-      id: newPlayerId,
+      id: randomUUID(),
       name: `Player-${Math.floor(Math.random() * 1000)}`,
       createdAt: now,
       lastSeenAt: now,
-      isOnline: true,
-      devices: [],
+      isActive: true,
     }
-    gameState.players.set(newPlayerId, player)
-    connection.socket.data.playerId = newPlayerId
+
+    gameState.players.set(player.id, player)
+    connection.socket.data.playerId = player.id
   }
 
-  handlePlayerConnections(connection, playerId)
-  connection.socket.emit('playerConnected', player)
-  connection.socket.emit('playerRooms', getRoomsByPlayerId(playerId))
+  if (existingDevice) {
+    device = {
+      ...existingDevice,
+      lastSeenAt: now,
+      isActive: true,
+    }
+
+    const updatedDevices = playerDevices.map((d) => (d.id === deviceId ? device : d))
+
+    gameState.devices.set(player.id, updatedDevices)
+  } else {
+    device = {
+      ...connection.device,
+      id: randomUUID(),
+      createdAt: now,
+      lastSeenAt: now,
+      playerId: player.id,
+      isActive: true,
+    }
+
+    gameState.devices.set(player.id, [...playerDevices, device])
+    connection.socket.data.device.id = device.id
+  }
+
+  handlePlayerConnections(connection, player.id)
+
+  connection.socket.emit('playerConnected', {
+    ...player,
+    devices: gameState.devices.get(player.id),
+  })
+  connection.socket.emit('playerRooms', getRoomsByPlayerId(player.id))
 }
 
 export const createRoom = (connection: ServerConnection, config: RoomConfig): void => {
@@ -247,8 +292,10 @@ export const disconnectPlayer = (connection: ServerConnection): void => {
 
   if (!player) return
 
+  ///////
   const playerRooms = getRoomsByPlayerId(playerId)
 
+  // room related stuff
   playerRooms.forEach((room) => {
     const roomMember = getRoomMembersByRoomId(room.id).find(
       (member) => member.playerId === playerId
@@ -267,10 +314,14 @@ export const disconnectPlayer = (connection: ServerConnection): void => {
     })
     connection.socket.leave(room.id)
   })
+  ////////
+  setDevicesToInactive(playerId)
+
+  gameState.playerConnections.delete(playerId)
 
   gameState.players.set(playerId, {
     ...player,
-    isOnline: false,
+    isActive: false,
     lastSeenAt: now,
   })
 }

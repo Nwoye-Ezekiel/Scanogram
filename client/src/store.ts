@@ -2,7 +2,7 @@ import { create } from 'zustand'
 import { Socket } from 'socket.io-client'
 import { immer } from 'zustand/middleware/immer'
 import { ClientPlayer, ClientRoom } from 'shared/types'
-import { setPlayerId } from './services'
+import { setDeviceId, setPlayerId } from './services'
 
 interface InitialState {
   error: string
@@ -76,7 +76,14 @@ export const useStore = create<State & Actions>()(
         set((state) => {
           state.player = player
         })
+
         setPlayerId(player.id)
+
+        const activeDevice = player.devices.find((device) => device.isActive)
+
+        if (activeDevice) {
+          setDeviceId(activeDevice.id)
+        }
       },
       playerRooms: (rooms) => {
         set((state) => {

@@ -13,16 +13,18 @@ export interface AppOverview {
   totalPlayers: number
 }
 
-// 👤 Players and Devices
-export interface Device {
+export interface ClientDevice {
   id: string
   os: string
   type: string
   browser: string
+}
+
+// 👤 Players and Devices
+export interface ServerDevice extends ClientDevice {
   createdAt: string
   lastSeenAt: string
   playerId: string
-  userAgent: string
   isActive: boolean
 }
 
@@ -35,7 +37,7 @@ export interface ServerPlayer {
 }
 
 export interface ClientPlayer extends ServerPlayer {
-  devices: Device[]
+  devices: ServerDevice[]
 }
 
 // 🏠 Rooms and Members
@@ -76,9 +78,10 @@ export interface RoomMessage {
 
 // 🧠 Server State
 export interface ServerGameState {
-  devices: Map<string, Device>
+  devices: Map<string, ServerDevice>
   rooms: Map<string, ServerRoom>
   players: Map<string, ServerPlayer>
   roomMembers: Map<string, RoomMember>
   roomMessages: Map<string, RoomMessage>
+  playerConnections: Map<string, ServerDevice>
 }

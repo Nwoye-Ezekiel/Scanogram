@@ -32,9 +32,9 @@ function generateRoomCode() {
   return code
 }
 
-function releaseRoomCode(code: string) {
-  usedCodes.delete(code) // Call when room is closed
-}
+// function releaseRoomCode(code: string) {
+//   usedCodes.delete(code) // Call when room is closed
+// }
 
 const getRoomMembersByPlayerId = (playerId: string) => {
   return Array.from(gameState.roomMembers.values()).filter((member) => member.playerId === playerId)
@@ -60,6 +60,7 @@ const gameState: ServerGameState = {
   players: new Map<string, ServerPlayer>(),
   roomMembers: new Map<string, RoomMember>(),
   roomMessages: new Map<string, RoomMessage>(),
+  playerConnections: new Map<string, Set<string>>(),
 }
 
 export const getAppOverview = (): AppOverview => {
@@ -87,6 +88,42 @@ export const getAppOverview = (): AppOverview => {
 
 //   connection.socket.emit('playerConnected', connectedPlayed)
 // }
+
+const disconnectOtherSockets = (connection: ServerConnection, playerId: string) => {
+  const allSockets = gameState.playerConnections.get(playerId)
+
+  if (!allSockets) return
+
+  for (const socketId of allSockets) {
+    if (socketId !== connection.socket.id) {
+      const socket = connection.io.sockets.sockets.get(socketId)
+
+      if (socket) {
+        socket.emit('error', {
+          reason: 'You logged in on another device',
+        })
+
+        socket.disconnect(true)
+      }
+    }
+  }
+
+  gameState.playerConnections.set(playerId, new Set([connection.socket.id]))
+}
+
+const handlePlayerConnections = (connection: ServerConnection, playerId: string) => {
+  let connections = gameState.playerConnections.get(playerId)
+
+  if (!connections) {
+    connections = new Set<string>()
+    gameState.playerConnections.set(playerId, connections)
+  }
+
+  connections.add(connection.socket.id)
+
+  disconnectOtherSockets(connection, playerId)
+}
+
 export const connectPlayer = (connection: ServerConnection): void => {
   const now = new Date().toISOString()
   const playerId = connection.playerId
@@ -113,8 +150,10 @@ export const connectPlayer = (connection: ServerConnection): void => {
       devices: [],
     }
     gameState.players.set(newPlayerId, player)
+    connection.socket.data.playerId = newPlayerId
   }
 
+  handlePlayerConnections(connection, playerId)
   connection.socket.emit('playerConnected', player)
   connection.socket.emit('playerRooms', getRoomsByPlayerId(playerId))
 }
@@ -141,9 +180,10 @@ export const addPlayerToRoom = (
   roomId: string,
   isAdmin: boolean
 ): void => {
+  const playerId = connection.playerId
   const now = new Date().toISOString()
   const room = gameState.rooms.get(roomId)
-  const player = gameState.players.get(connection.playerId)
+  const player = gameState.players.get(playerId)
   const roomMembers = getRoomMembersByRoomId(roomId)
 
   if (room && player) {
@@ -151,10 +191,10 @@ export const addPlayerToRoom = (
       gameState.roomMembers.set(roomId, {
         roomId,
         isAdmin,
+        playerId,
         joinedAt: now,
         isActive: true,
         lastSeenAt: now,
-        playerId: player.id,
       })
 
       connection.socket.join(room.id)
@@ -202,15 +242,16 @@ export const addPlayerToRoom = (
 
 export const disconnectPlayer = (connection: ServerConnection): void => {
   const now = new Date().toISOString()
-  const player = gameState.players.get(connection.playerId)
+  const playerId = connection.playerId
+  const player = gameState.players.get(playerId)
 
   if (!player) return
 
-  const playerRooms = getRoomsByPlayerId(connection.playerId)
+  const playerRooms = getRoomsByPlayerId(playerId)
 
   playerRooms.forEach((room) => {
     const roomMember = getRoomMembersByRoomId(room.id).find(
-      (member) => member.playerId === connection.playerId
+      (member) => member.playerId === playerId
     )
 
     if (roomMember) {
@@ -227,7 +268,7 @@ export const disconnectPlayer = (connection: ServerConnection): void => {
     connection.socket.leave(room.id)
   })
 
-  gameState.players.set(connection.playerId, {
+  gameState.players.set(playerId, {
     ...player,
     isOnline: false,
     lastSeenAt: now,

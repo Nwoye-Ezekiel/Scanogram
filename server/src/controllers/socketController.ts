@@ -1,5 +1,5 @@
 import util from 'node:util'
-import { RoomConfig } from 'shared/types'
+import { ClientDevice, RoomConfig } from 'shared/types'
 import { Server, Socket } from 'socket.io'
 import * as gameService from '../services/gameService'
 
@@ -47,11 +47,13 @@ export const setupSocketHandlers = (io: Server): void => {
   io.on('connection', (socket: Socket) => {
     wrapSocketEmit(socket)
 
-    const playerId = (socket.handshake.query.playerId ?? '') as string
+    const playerId = socket.handshake.query.playerId as string
+    const device: ClientDevice = JSON.parse(socket.handshake.query.device as string)
 
     socket.data.playerId = playerId
+    socket.data.device = device
 
-    const connection = { io, socket, playerId }
+    const connection = { io, socket, playerId, device }
 
     gameService.connectPlayer(connection)
 

@@ -38,7 +38,7 @@ export interface Player {
 }
 
 export interface PopulatedPlayer extends Player {
-  devices: Map<string, PopulatedDevice>
+  devices: PopulatedDevice[]
 }
 
 // 🏠 Rooms and Members
@@ -56,8 +56,8 @@ export interface Room extends RoomConfig {
 }
 
 export interface PopulatedRoom extends Room {
-  roomMemberships: Map<string, RoomMembership>
-  messages: Map<string, RoomMessage>
+  roomMemberships: RoomMembership[]
+  messages: RoomMessage[]
 }
 
 export interface RoomMembership {
@@ -78,6 +78,7 @@ export interface RoomMessage {
   message: string
   createdAt: string
   playerId: string
+  playerName: string
 }
 
 // 🧠 Server State

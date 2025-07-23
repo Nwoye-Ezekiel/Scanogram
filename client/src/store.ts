@@ -10,7 +10,7 @@ interface InitialState {
   isConnected: boolean
   socket: Socket | null
   player: PopulatedPlayer | null
-  rooms: Map<string, PopulatedRoom>
+  rooms: PopulatedRoom[]
   totalRooms: number
   totalPlayers: number
 }
@@ -39,7 +39,7 @@ const initialState: InitialState = {
   isConnected: false,
   totalPlayers: 0,
   socket: null,
-  rooms: new Map<string, PopulatedRoom>(),
+  rooms: [],
 }
 
 export const useStore = create<State & Actions>()(
@@ -87,12 +87,20 @@ export const useStore = create<State & Actions>()(
       },
       playerRooms: (rooms) => {
         set((state) => {
-          state.rooms = new Map(rooms.map((room) => [room.id, room]))
+          state.rooms = rooms
         })
       },
       updateRoom: (room) => {
         set((state) => {
-          state.rooms.set(room.id, room)
+          const index = state.rooms.findIndex((r) => r.id === room.id)
+
+          if (index !== -1) {
+            const updatedRooms = [...state.rooms]
+            updatedRooms[index] = room
+            return { rooms: updatedRooms }
+          } else {
+            return { rooms: [...state.rooms, room] }
+          }
         })
       },
       reset: () => {

@@ -88,14 +88,14 @@ export const setupSocketHandlers = (io: Server): void => {
       )
     })
 
-    // socket.on('sendMessage', (message: string) => {
-    //   gameService.sendMessage(connection, message)
+    socket.on('sendMessage', (payload: { message: string; roomId: string }) => {
+      gameService.sendMessage(connection, payload)
 
-    //   console.log(
-    //     'GAME STATE: Sent Message',
-    //     util.inspect(gameService.getGameState(), { depth: null, colors: true })
-    //   )
-    // })
+      console.log(
+        'GAME STATE: Sent Message',
+        util.inspect(gameService.getGameState(), { depth: null, colors: true })
+      )
+    })
 
     // socket.on('leaveRoom', (roomId: string) => {
     //   const room = gameService.getRoomByCode(roomId)

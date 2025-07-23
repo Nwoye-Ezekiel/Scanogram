@@ -3,6 +3,7 @@ import { useRoom } from 'hooks/useRoom'
 import { useNavigate, useParams } from 'react-router-dom'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import QrCodeCracker from '..'
+import { RoomMessage } from 'shared/types'
 
 export default function PrivateRoomLobby() {
   const { joinRoom } = useRoom()
@@ -13,35 +14,35 @@ export default function PrivateRoomLobby() {
   const socket = useStore((state) => state.socket)
 
   const [message, setMessage] = useState('')
-  const [allMessages, setAllMessages] = useState<
-    { playerName: string; message: string; createdAt: string; playerId: string }[]
-  >([])
+  const [allMessages, setAllMessages] = useState<RoomMessage[]>([])
   const navigate = useNavigate()
   const messagesEndRef = useRef<HTMLDivElement | null>(null)
 
   const joinedRoom = useMemo(() => {
-    const room = rooms.get(roomId ?? '')
-    if (!room) return undefined
+    if (!roomId) return null
+    return rooms.find((room) => room.id === roomId)
+  }, [rooms, roomId])
 
-    const isPlayerInRoom = Array.from(room.roomMemberships.values()).some(
-      (membership) => membership.playerId === player?.id
-    )
-
-    return isPlayerInRoom ? room : undefined
-  }, [rooms, roomId, player])
-
-  const isJoinedRoomAdmin = useMemo(() => joinedRoom?.adminId === player?.id, [joinedRoom, player])
+  const isRoomAdmin = useMemo(() => {
+    if (!joinedRoom) return false
+    return joinedRoom.adminId === player?.id
+  }, [joinedRoom, player])
 
   // Send message to server
   const sendMessage = (message: string) => {
-    socket?.emit('sendMessage', message)
+    socket?.emit('sendMessage', {
+      message,
+      roomId,
+    })
     setAllMessages((prev) => [
       ...prev,
       {
         message,
-        playerId: socket?.id || '',
+        playerName: player?.name ?? '',
+        id: `${roomId}:${player?.id}`,
         createdAt: new Date().toISOString(),
-        playerName: player?.name || 'Unknown',
+        playerId: player?.id ?? '',
+        roomId: roomId ?? '',
       },
     ])
     setMessage('')
@@ -80,12 +81,7 @@ export default function PrivateRoomLobby() {
       }
     }
 
-    const handleIncomingMessage = (incomingMessage: {
-      message: string
-      playerId: string
-      createdAt: string
-      playerName: string
-    }) => {
+    const handleIncomingMessage = (incomingMessage: RoomMessage) => {
       setAllMessages((prev) => [...prev, incomingMessage])
     }
 
@@ -108,8 +104,8 @@ export default function PrivateRoomLobby() {
   }, [allMessages])
 
   return (
-    <div>
-      <div>PrivateRoomLobby</div>
+    <div className="p-5">
+      <h1 className="text-2xl font-bold">Room Lobby</h1>
       {error ? (
         <div>
           <h2>Error: {error}</h2>
@@ -118,15 +114,30 @@ export default function PrivateRoomLobby() {
         <div>{roomId && socket && <QrCodeCracker roomId={roomId} socket={socket} />}</div>
       ) : (
         <div>
-          <div>
-            <h3>List:</h3>
-            {Array.from(joinedRoom?.roomMemberships?.values() ?? []).map((roomMembership) => (
-              <div key={roomMembership.playerId} className="flex gap-2">
-                <span>{roomMembership.playerName}</span>
-                <span>{roomMembership.isAdmin ? 'Admin' : 'Member'}</span>
-                <span>{roomMembership.isActive ? 'Active' : 'Inactive'}</span>
-              </div>
-            ))}
+          <div className="mb-2">
+            <h3 className="mt-5 mb-1 font-bold">Room Members:</h3>
+            <ol>
+              {joinedRoom?.roomMemberships.map((roomMembership, index) => (
+                <li key={roomMembership.playerId} className="flex items-center gap-2">
+                  <span>
+                    <span className="inline-block w-5">{index + 1}.</span>
+                    <span
+                      className={`${roomMembership.playerId === player?.id ? 'font-semibold' : ''}`}
+                    >
+                      {roomMembership.playerName}
+                    </span>
+                  </span>
+                  <span
+                    className={`w-2 h-2  rounded-full ${
+                      roomMembership.isActive ? 'bg-green-500' : 'bg-gray-300'
+                    }`}
+                  />
+                  <span className="italic text-xs text-gray-500">
+                    {roomMembership.isAdmin ? '(Admin)' : ''}
+                  </span>
+                </li>
+              ))}
+            </ol>
           </div>
 
           <div className="relative w-80 h-[20rem] border border-red-500 p-2 flex flex-col overflow-hidden">
@@ -136,7 +147,7 @@ export default function PrivateRoomLobby() {
                 <div
                   key={index}
                   className={`text-white p-2 rounded w-fit max-w-[60%] break-words ${
-                    msg.playerId === socket?.id
+                    msg.playerId === player?.id
                       ? 'ml-auto h-fit bg-orange-400'
                       : 'mr-auto bg-blue-700'
                   }`}
@@ -167,7 +178,7 @@ export default function PrivateRoomLobby() {
             <button className="bg-blue-500 text-white px-4 rounded-r" onClick={leaveRoom}>
               Leave Room
             </button>
-            {isJoinedRoomAdmin && (
+            {isRoomAdmin && (
               <button className="bg-blue-500 text-white px-4 rounded-r" onClick={startGame}>
                 Start Game
               </button>

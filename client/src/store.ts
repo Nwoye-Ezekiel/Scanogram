@@ -1,7 +1,7 @@
 import { create } from 'zustand'
 import { Socket } from 'socket.io-client'
 import { immer } from 'zustand/middleware/immer'
-import { ClientPlayer, ClientRoom } from 'shared/types'
+import { PopulatedPlayer, PopulatedRoom } from 'shared/types'
 import { setDeviceId, setPlayerId } from './services'
 
 interface InitialState {
@@ -9,8 +9,8 @@ interface InitialState {
   isLoading: boolean
   isConnected: boolean
   socket: Socket | null
-  player: ClientPlayer | null
-  rooms: Map<string, ClientRoom>
+  player: PopulatedPlayer | null
+  rooms: Map<string, PopulatedRoom>
   totalRooms: number
   totalPlayers: number
 }
@@ -20,10 +20,10 @@ interface State extends InitialState {}
 type Actions = {
   actions: {
     reset: () => void
-    playerRooms: (rooms: ClientRoom[]) => void
-    updateRoom: (room: ClientRoom) => void
+    playerRooms: (rooms: PopulatedRoom[]) => void
+    updateRoom: (room: PopulatedRoom) => void
     setError: (error: string) => void
-    connectPlayer: (player: ClientPlayer) => void
+    connectPlayer: (player: PopulatedPlayer) => void
     setIsLoading: (isLoading: boolean) => void
     setIsConnected: (isConnected: boolean) => void
     setSocket: (socket: Socket | null) => void
@@ -39,7 +39,7 @@ const initialState: InitialState = {
   isConnected: false,
   totalPlayers: 0,
   socket: null,
-  rooms: new Map<string, ClientRoom>(),
+  rooms: new Map<string, PopulatedRoom>(),
 }
 
 export const useStore = create<State & Actions>()(
@@ -72,14 +72,14 @@ export const useStore = create<State & Actions>()(
           ;(state as any).socket = socket
         })
       },
-      connectPlayer: (player: ClientPlayer) => {
+      connectPlayer: (player: PopulatedPlayer) => {
         set((state) => {
           state.player = player
         })
 
         setPlayerId(player.id)
 
-        const activeDevice = player.devices.find((device) => device.isActive)
+        const activeDevice = Array.from(player.devices.values()).find((device) => device.isActive)
 
         if (activeDevice) {
           setDeviceId(activeDevice.id)

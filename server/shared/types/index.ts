@@ -1,11 +1,11 @@
 import { Socket, Server } from 'socket.io'
 
 // 🔌 Connection Layer
-export interface ServerConnection {
+export interface Connection {
   io: Server
   socket: Socket
   playerId: string
-  device: ClientDevice
+  device: Device
 }
 
 // 📊 App Stats / Overview
@@ -14,7 +14,7 @@ export interface AppOverview {
   totalPlayers: number
 }
 
-export interface ClientDevice {
+export interface Device {
   id: string
   os: string
   type: string
@@ -22,14 +22,14 @@ export interface ClientDevice {
 }
 
 // 👤 Players and Devices
-export interface ServerDevice extends ClientDevice {
+export interface PopulatedDevice extends Device {
   createdAt: string
   lastSeenAt: string
   playerId: string
   isActive: boolean
 }
 
-export interface ServerPlayer {
+export interface Player {
   id: string
   name: string
   createdAt: string
@@ -37,8 +37,8 @@ export interface ServerPlayer {
   isActive: boolean
 }
 
-export interface ClientPlayer extends ServerPlayer {
-  devices: ServerDevice[]
+export interface PopulatedPlayer extends Player {
+  devices: Map<string, PopulatedDevice>
 }
 
 // 🏠 Rooms and Members
@@ -47,25 +47,28 @@ export interface RoomConfig {
   maxPlayers: number
 }
 
-export interface ServerRoom extends RoomConfig {
+export interface Room extends RoomConfig {
   id: string
   createdAt: string
   updatedAt: string
+  adminId: string
   isGameStarted: boolean
 }
 
-export interface ClientRoom extends ServerRoom {
-  members: RoomMember[]
-  messages: RoomMessage[]
+export interface PopulatedRoom extends Room {
+  roomMemberships: Map<string, RoomMembership>
+  messages: Map<string, RoomMessage>
 }
 
-export interface RoomMember {
-  joinedAt: string
+export interface RoomMembership {
+  id: string
   roomId: string
   isAdmin: boolean
+  joinedAt: string
   playerId: string
-  lastSeenAt: string
   isActive: boolean
+  playerName: string
+  lastSeenAt: string
 }
 
 // 💬 Messaging
@@ -78,11 +81,11 @@ export interface RoomMessage {
 }
 
 // 🧠 Server State
-export interface ServerGameState {
-  devices: Map<string, ServerDevice[]>
-  rooms: Map<string, ServerRoom>
-  players: Map<string, ServerPlayer>
-  roomMembers: Map<string, RoomMember>
+export interface GameState {
+  rooms: Map<string, Room>
+  players: Map<string, Player>
+  roomMemberships: Map<string, RoomMembership>
   roomMessages: Map<string, RoomMessage>
+  devices: Map<string, PopulatedDevice[]>
   playerConnections: Map<string, Set<string>>
 }

@@ -19,15 +19,18 @@ export default function PrivateRoomLobby() {
   const navigate = useNavigate()
   const messagesEndRef = useRef<HTMLDivElement | null>(null)
 
-  const activeRoom = useMemo(() => {
-    return Array.from(rooms.values()).find((room) =>
-      room.members.find((member) => member.playerId === player?.id && member.isActive)
-    )
-  }, [rooms, player])
+  const joinedRoom = useMemo(() => {
+    const room = rooms.get(roomId ?? '')
+    if (!room) return undefined
 
-  const isActiveRoomAdmin = useMemo(() => {
-    return activeRoom?.members.some((member) => member.playerId === player?.id && member.isAdmin)
-  }, [activeRoom, player])
+    const isPlayerInRoom = Array.from(room.roomMemberships.values()).some(
+      (membership) => membership.playerId === player?.id
+    )
+
+    return isPlayerInRoom ? room : undefined
+  }, [rooms, roomId, player])
+
+  const isJoinedRoomAdmin = useMemo(() => joinedRoom?.adminId === player?.id, [joinedRoom, player])
 
   // Send message to server
   const sendMessage = (message: string) => {
@@ -54,10 +57,10 @@ export default function PrivateRoomLobby() {
   }
 
   useEffect(() => {
-    if (roomId && !activeRoom) {
+    if (roomId) {
       joinRoom(roomId)
     }
-  }, [roomId, player])
+  }, [roomId])
 
   // Listen for incoming messages from server
   useEffect(() => {
@@ -111,17 +114,17 @@ export default function PrivateRoomLobby() {
         <div>
           <h2>Error: {error}</h2>
         </div>
-      ) : activeRoom?.isGameStarted ? (
+      ) : joinedRoom?.isGameStarted ? (
         <div>{roomId && socket && <QrCodeCracker roomId={roomId} socket={socket} />}</div>
       ) : (
         <div>
           <div>
             <h3>List:</h3>
-            {activeRoom?.members.map((member) => (
-              <div key={member.playerId} className="flex gap-2">
-                <span>{member.playerId}</span>
-                <span>{member.isAdmin ? 'Admin' : 'Member'}</span>
-                <span>{member.isActive ? 'Active' : 'Inactive'}</span>
+            {Array.from(joinedRoom?.roomMemberships?.values() ?? []).map((roomMembership) => (
+              <div key={roomMembership.playerId} className="flex gap-2">
+                <span>{roomMembership.playerName}</span>
+                <span>{roomMembership.isAdmin ? 'Admin' : 'Member'}</span>
+                <span>{roomMembership.isActive ? 'Active' : 'Inactive'}</span>
               </div>
             ))}
           </div>
@@ -164,7 +167,7 @@ export default function PrivateRoomLobby() {
             <button className="bg-blue-500 text-white px-4 rounded-r" onClick={leaveRoom}>
               Leave Room
             </button>
-            {isActiveRoomAdmin && (
+            {isJoinedRoomAdmin && (
               <button className="bg-blue-500 text-white px-4 rounded-r" onClick={startGame}>
                 Start Game
               </button>

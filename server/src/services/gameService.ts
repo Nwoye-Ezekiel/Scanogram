@@ -1,13 +1,15 @@
 import {
   AppOverview,
   RoomConfig,
-  RoomMember,
+  RoomMembership,
   RoomMessage,
-  ServerConnection,
-  ServerDevice,
-  ServerGameState,
-  ServerPlayer,
-  ServerRoom,
+  Connection,
+  PopulatedDevice,
+  GameState,
+  Player,
+  Room,
+  PopulatedRoom,
+  Device,
 } from 'shared/types'
 import { randomUUID } from 'crypto'
 
@@ -34,58 +36,105 @@ function generateRoomCode() {
 //   usedCodes.delete(code) // Call when room is closed
 // }
 
-export const removePlayerData = (playerId: string): void => {
-  // Remove all player connections (socket IDs)
+const removePlayerData = (playerId: string): void => {
   gameState.playerConnections.delete(playerId)
-
-  // Remove player from players map
   gameState.players.delete(playerId)
-
-  // Remove player's devices
   gameState.devices.delete(playerId)
 
-  // Remove room membership entries for player
-  for (const [roomId, member] of gameState.roomMembers.entries()) {
-    if (member.playerId === playerId) {
-      gameState.roomMembers.delete(roomId)
+  for (const [id, roomMembership] of gameState.roomMemberships) {
+    if (roomMembership.playerId === playerId) {
+      gameState.roomMemberships.delete(id)
     }
   }
 }
 
-const getRoomMembersByPlayerId = (playerId: string) => {
-  return Array.from(gameState.roomMembers.values()).filter((member) => member.playerId === playerId)
-}
+// can only be gotten with playerId
+const getRoomsByPlayerId = (playerId: string): Map<string, Room> => {
+  const rooms = new Map<string, Room>()
+  const playerMemberships = getRoomMembershipsByPlayerId(playerId)
 
-const getRoomsByPlayerId = (playerId: string) => {
-  return getRoomMembersByPlayerId(playerId)
-    .map((member) => gameState.rooms.get(member.roomId))
-    .filter((room) => room !== undefined)
-}
-
-const getRoomMembersByRoomId = (roomId: string) => {
-  return Array.from(gameState.roomMembers.values()).filter((member) => member.roomId === roomId)
-}
-
-const getRoomMessagesByRoomId = (roomId: string) => {
-  return Array.from(gameState.roomMessages.values()).filter((message) => message.roomId === roomId)
-}
-
-const setDevicesToInactive = (playerId: string) => {
-  const devices = gameState.devices.get(playerId)
-  if (devices) {
-    for (const device of devices) {
-      device.isActive = false
-    }
+  for (const roomMembership of playerMemberships.values()) {
+    const room = getRoomByRoomId(roomMembership.roomId)
+    if (room) rooms.set(room.id, room)
   }
+
+  return rooms
 }
 
-const gameState: ServerGameState = {
-  rooms: new Map<string, ServerRoom>(),
-  players: new Map<string, ServerPlayer>(),
-  devices: new Map<string, ServerDevice[]>(),
-  roomMembers: new Map<string, RoomMember>(),
-  roomMessages: new Map<string, RoomMessage>(),
-  playerConnections: new Map<string, Set<string>>(),
+// can only be gotten with playerId
+const getPopulatedRoomsByPlayerId = (playerId: string): Map<string, PopulatedRoom> => {
+  const rooms = new Map<string, PopulatedRoom>()
+  const playerRooms = getRoomsByPlayerId(playerId)
+
+  for (const roomId of playerRooms.keys()) {
+    const populatedRoom = getPopulatedRoomByRoomId(roomId)
+    if (populatedRoom) rooms.set(roomId, populatedRoom)
+  }
+
+  return rooms
+}
+
+// can only be gotten with playerId
+const getRoomMembershipsByPlayerId = (playerId: string): Map<string, RoomMembership> => {
+  const memberships = new Map<string, RoomMembership>()
+
+  for (const [id, roomMembership] of gameState.roomMemberships) {
+    if (roomMembership.playerId === playerId) memberships.set(id, roomMembership)
+  }
+
+  return memberships
+}
+
+/////////////////////////////
+
+// can only be gotten with roomId
+const getRoomByRoomId = (roomId: string): Room | undefined => {
+  return gameState.rooms.get(roomId)
+}
+
+const populateRoom = (room: Room): PopulatedRoom => ({
+  ...room,
+  roomMemberships: getRoomMembersByRoomId(room.id),
+  messages: getRoomMessagesByRoomId(room.id),
+})
+
+// can only be gotten with roomId
+const getPopulatedRoomByRoomId = (roomId: string): PopulatedRoom | undefined => {
+  const room = getRoomByRoomId(roomId)
+  return room ? populateRoom(room) : undefined
+}
+
+// can only be gotten with roomId
+const getRoomMembersByRoomId = (roomId: string): Map<string, RoomMembership> => {
+  const roomMemberships = new Map<string, RoomMembership>()
+
+  for (const [id, roomMembership] of gameState.roomMemberships) {
+    if (roomMembership.roomId === roomId) roomMemberships.set(id, roomMembership)
+  }
+
+  return roomMemberships
+}
+
+// can only be gotten with roomId
+const getRoomMessagesByRoomId = (roomId: string): Map<string, RoomMessage> => {
+  const messages = new Map<string, RoomMessage>()
+
+  for (const [id, message] of gameState.roomMessages) {
+    if (message.roomId === roomId) messages.set(id, message)
+  }
+
+  return messages
+}
+
+/////////////
+
+const gameState: GameState = {
+  rooms: new Map<string, Room>(), // <room.id, room>
+  players: new Map<string, Player>(), // <player.id, player>
+  devices: new Map<string, PopulatedDevice[]>(), // <playerId, devices>
+  roomMemberships: new Map<string, RoomMembership>(), // <roomId:playerId, roomMemberships>
+  roomMessages: new Map<string, RoomMessage>(), // <roomId:playerId, message>
+  playerConnections: new Map<string, Set<string>>(), // <playerId, socketIds>
 }
 
 export const getAppOverview = (): AppOverview => {
@@ -95,175 +144,180 @@ export const getAppOverview = (): AppOverview => {
   }
 }
 
-const disconnectOtherSockets = (connection: ServerConnection, playerId: string) => {
-  const playerConnections = gameState.playerConnections.get(playerId)
+const disconnectOtherSockets = (connection: Connection, playerId: string) => {
+  const { socket, io, device } = connection
   const playerDevices = gameState.devices.get(playerId)
+  const playerConnections = gameState.playerConnections.get(playerId)
 
   if (!playerConnections || !playerDevices) return
 
+  // Disconnect all other sockets except the current one
   for (const socketId of playerConnections) {
-    if (socketId !== connection.socket.id) {
-      const socket = connection.io.sockets.sockets.get(socketId)
-
-      if (socket) {
-        socket.emit('error', {
-          reason: 'You logged in on another device',
-        })
-
-        socket.disconnect(true)
-      }
+    if (socketId !== socket.id) {
+      io.sockets.sockets.get(socketId)?.emit('error', 'You logged in on another device')
+      io.sockets.sockets.get(socketId)?.disconnect(true)
     }
   }
 
-  for (const device of playerDevices) {
-    if (device.id !== connection.device.id) {
-      device.isActive = false
-    }
-  }
+  // Deactivate all other devices except the current one
+  const updatedDevices = playerDevices.map((d) =>
+    d.id === device.id ? d : { ...d, isActive: false }
+  )
 
-  gameState.playerConnections.set(playerId, new Set([connection.socket.id]))
+  gameState.devices.set(playerId, updatedDevices)
+  gameState.playerConnections.set(playerId, new Set([socket.id]))
 }
 
-const handlePlayerConnections = (connection: ServerConnection, playerId: string) => {
-  let playerConnections = gameState.playerConnections.get(playerId)
+const handlePlayerConnections = (connection: Connection, playerId: string) => {
+  const { socket } = connection
 
-  if (!playerConnections) {
-    playerConnections = new Set<string>()
-    gameState.playerConnections.set(playerId, playerConnections)
-  }
+  const playerConnections = gameState.playerConnections.get(playerId) ?? new Set<string>()
 
-  playerConnections.add(connection.socket.id)
+  playerConnections.add(socket.id)
+  gameState.playerConnections.set(playerId, playerConnections)
 
   disconnectOtherSockets(connection, playerId)
 }
 
-export const connectPlayer = (connection: ServerConnection): void => {
-  const now = new Date().toISOString()
-  const { playerId } = connection
-  const { id: deviceId } = connection.device
+// Game logic
+///////////////////////////////////////////////////////////////////////////////
 
-  const existingPlayer = gameState.players.get(playerId)
-  const playerDevices = gameState.devices.get(playerId) ?? []
+export function createOrUpdatePlayer(playerId: string): Player {
+  const timestamp = new Date().toISOString()
+  const existing = gameState.players.get(playerId)
 
-  const existingDevice = playerDevices.find((device) => device.id === deviceId)
+  const player: Player = existing
+    ? {
+        ...existing,
+        isActive: true,
+        lastSeenAt: timestamp,
+      }
+    : {
+        id: randomUUID(),
+        isActive: true,
+        createdAt: timestamp,
+        lastSeenAt: timestamp,
+        name: `Player-${Math.floor(Math.random() * 1000)}`,
+      }
 
-  let player: ServerPlayer
-  let device: ServerDevice
+  gameState.players.set(player.id, player)
 
-  if (existingPlayer) {
-    player = {
-      ...existingPlayer,
-      isActive: true,
-      lastSeenAt: now,
-    }
-    gameState.players.set(playerId, player)
-  } else {
-    player = {
-      id: randomUUID(),
-      name: `Player-${Math.floor(Math.random() * 1000)}`,
-      createdAt: now,
-      lastSeenAt: now,
-      isActive: true,
-    }
+  return player
+}
 
-    gameState.players.set(player.id, player)
-    connection.socket.data.playerId = player.id
-  }
+export function createOrUpdateDevice(device: Device, playerId: string): PopulatedDevice {
+  const deviceId = device.id
+  const timestamp = new Date().toISOString()
+  const existingDevices = gameState.devices.get(playerId) ?? []
+  const existingDevice = existingDevices.find((d) => d.id === deviceId)
 
-  if (existingDevice) {
-    device = {
-      ...existingDevice,
-      lastSeenAt: now,
-      isActive: true,
-    }
+  const populatedDevice: PopulatedDevice = existingDevice
+    ? {
+        ...existingDevice,
+        isActive: true,
+        lastSeenAt: timestamp,
+      }
+    : {
+        ...device,
+        playerId,
+        isActive: true,
+        id: randomUUID(),
+        createdAt: timestamp,
+        lastSeenAt: timestamp,
+      }
 
-    const updatedDevices = playerDevices.map((d) => (d.id === deviceId ? device : d))
+  gameState.devices.set(
+    playerId,
+    existingDevice
+      ? existingDevices.map((d) => (d.id === deviceId ? populatedDevice : d))
+      : [...existingDevices, populatedDevice]
+  )
 
-    gameState.devices.set(player.id, updatedDevices)
-  } else {
-    device = {
-      ...connection.device,
-      id: randomUUID(),
-      createdAt: now,
-      lastSeenAt: now,
-      playerId: player.id,
-      isActive: true,
-    }
+  return populatedDevice
+}
 
-    gameState.devices.set(player.id, [...playerDevices, device])
-    connection.socket.data.device.id = device.id
-  }
+export const connectPlayer = (connection: Connection): void => {
+  const { socket, playerId, device } = connection
+  const player = createOrUpdatePlayer(playerId)
+  const populatedDevice = createOrUpdateDevice(device, player.id)
+
+  socket.data.playerId = player.id
+  socket.data.device.id = populatedDevice.id
 
   handlePlayerConnections(connection, player.id)
 
-  connection.socket.emit('playerConnected', {
+  socket.emit('playerConnected', {
     ...player,
     devices: gameState.devices.get(player.id),
   })
-  connection.socket.emit('playerRooms', getRoomsByPlayerId(player.id))
+
+  socket.emit('playerRooms', getPopulatedRoomsByPlayerId(player.id))
 }
 
-export const createRoom = (connection: ServerConnection, config: RoomConfig): void => {
+export const createRoom = (connection: Connection, config: RoomConfig): void => {
   const roomId = generateRoomCode()
-  const now = new Date().toISOString()
+  const { socket, playerId } = connection
+  const timestamp = new Date().toISOString()
 
-  const newRoom: ServerRoom = {
+  const newRoom: Room = {
     ...config,
     id: roomId,
-    createdAt: now,
-    updatedAt: now,
+    adminId: playerId,
+    createdAt: timestamp,
+    updatedAt: timestamp,
     isGameStarted: false,
   }
 
   gameState.rooms.set(roomId, newRoom)
 
-  addPlayerToRoom(connection, roomId, true)
+  socket.emit('roomCreated', roomId)
 }
 
-export const addPlayerToRoom = (
-  connection: ServerConnection,
-  roomId: string,
-  isAdmin: boolean
-): void => {
-  const playerId = connection.playerId
-  const now = new Date().toISOString()
+export const joinRoom = (connection: Connection, roomId: string): void => {
+  const { playerId, socket, io } = connection
+  const timestamp = new Date().toISOString()
+
   const room = gameState.rooms.get(roomId)
-  const player = gameState.players.get(playerId)
-  const roomMembers = getRoomMembersByRoomId(roomId)
-
-  if (room && player) {
-    if (roomMembers.length + 1 <= room.maxPlayers) {
-      gameState.roomMembers.set(roomId, {
-        roomId,
-        isAdmin,
-        playerId,
-        joinedAt: now,
-        isActive: true,
-        lastSeenAt: now,
-      })
-
-      connection.socket.join(room.id)
-
-      connection.socket.emit(`${isAdmin ? 'roomCreated' : 'roomJoined'}`, roomId)
-
-      connection.socket.to(room.id).emit('playerJoined', `${player.name} just joined the room.`)
-
-      connection.io.to(room.id).emit('roomUpdated', {
-        ...room,
-        members: getRoomMembersByRoomId(roomId),
-        messages: getRoomMessagesByRoomId(roomId),
-      })
-    } else {
-      connection.socket.emit('error', 'Room is full')
-    }
-  } else if (!room) {
-    connection.socket.emit('error', 'Room not found')
-  } else if (!player) {
-    connection.socket.emit('error', 'Player not found')
+  if (!room) {
+    socket.emit('error', 'Room not found')
+    return
   }
+
+  const player = gameState.players.get(playerId)
+  if (!player) {
+    socket.emit('error', 'Player not found')
+    return
+  }
+
+  const roomMembershipId = `${roomId}:${playerId}`
+  const isAlreadyMember = gameState.roomMemberships.has(roomMembershipId)
+
+  const roomMemberships = getRoomMembersByRoomId(roomId)
+  if (!isAlreadyMember && roomMemberships.size >= room.maxPlayers) {
+    socket.emit('error', 'Room is full')
+    return
+  }
+
+  // Set or update membership
+  gameState.roomMemberships.set(roomMembershipId, {
+    roomId,
+    playerId,
+    isActive: true,
+    joinedAt: timestamp,
+    id: roomMembershipId,
+    lastSeenAt: timestamp,
+    playerName: player.name,
+    isAdmin: playerId === room.adminId,
+  })
+
+  socket.join(room.id)
+
+  socket.to(room.id).emit('playerJoined', `${player.name} just joined the room.`)
+
+  io.to(room.id).emit('roomUpdated', getPopulatedRoomByRoomId(room.id))
 }
 
-// export const sendMessage = (connection: ServerConnection, message: string): void => {
+// export const sendMessage = (connection: Connection, message: string): void => {
 //   const roomId = gameState.players.get(connection.playerId))?.room?.roomId ?? ''
 //   const room = gameState.rooms.get(roomId)
 
@@ -281,83 +335,44 @@ export const addPlayerToRoom = (
 //     message,
 //     playerId: connection.playerId),
 //     createdAt: new Date().toISOString().toISOString(),
-//     playerName: gameState.players.get(connection.playerId))?.playerName || 'Unknown',
+//     playerName: gameState.players.get(connection.playerId))?.playerName || 'Unktimestampn',
 //   })
 // }
 
-export const disconnectPlayer = (connection: ServerConnection): void => {
-  const now = new Date().toISOString()
-  const playerId = connection.playerId
+export const disconnectPlayer = (connection: Connection): void => {
+  const { socket, playerId } = connection
+  const timestamp = new Date().toISOString()
   const player = gameState.players.get(playerId)
 
   if (!player) return
 
-  ///////
-  const playerRooms = getRoomsByPlayerId(playerId)
+  // Handle room memberships
+  getRoomMembershipsByPlayerId(playerId).forEach((roomMembership) => {
+    if (!roomMembership.isActive) return
 
-  // room related stuff
-  playerRooms.forEach((room) => {
-    const roomMember = getRoomMembersByRoomId(room.id).find(
-      (member) => member.playerId === playerId
-    )
+    roomMembership.isActive = false
+    roomMembership.lastSeenAt = timestamp
 
-    if (roomMember) {
-      roomMember.isActive = false
-      roomMember.lastSeenAt = now
-    }
-
-    connection.socket.to(room.id).emit('playerLeft', `${player.name} just left the room.`)
-    connection.socket.to(room.id).emit('roomUpdated', {
-      ...room,
-      members: getRoomMembersByRoomId(room.id),
-      messages: getRoomMessagesByRoomId(room.id),
-    })
-    connection.socket.leave(room.id)
+    socket.to(roomMembership.roomId).emit('playerLeft', `${player.name} just left the room.`)
+    socket
+      .to(roomMembership.roomId)
+      .emit('roomUpdated', getPopulatedRoomByRoomId(roomMembership.roomId))
   })
-  ////////
-  setDevicesToInactive(playerId)
 
+  // Remove player connection
   gameState.playerConnections.delete(playerId)
 
+  // Mark player devices as inactive
+  gameState.devices.get(playerId)?.forEach((device) => {
+    device.isActive = false
+  })
+
+  // Mark player as inactive
   gameState.players.set(playerId, {
     ...player,
     isActive: false,
-    lastSeenAt: now,
+    lastSeenAt: timestamp,
   })
 }
 
-////////////////////////////////////////
-
-// export const removePlayer = (playerId: string): void => {
-//   leaveRoom(playerId)
-//   gameState.players.delete(playerId)
-// }
-
-// export const leaveRoom = (playerId: string): void => {
-//   const room = getRoomByPlayerId(playerId)
-//   const player = getPlayerByPlayerId(playerId)
-
-//   if (!room || !player) return
-
-//   room.players.delete(playerId)
-
-//   if (room.players.size === 0) {
-//     // Use room.roomId as the key
-//     gameState.rooms.delete(room.roomId)
-//   } else {
-//     const isAdmin = player?.room?.isAdmin
-
-//     if (isAdmin) {
-//       const nextAdmin = getPlayerByPlayerId(Array.from(room.players)[0])
-//       if (nextAdmin?.room) {
-//         nextAdmin.room.isAdmin = true
-//       }
-//     }
-//   }
-
-//   player.room = null
-// }
-
-export const getGameState = () => {
-  return gameState
-}
+export const getGameState = () => gameState

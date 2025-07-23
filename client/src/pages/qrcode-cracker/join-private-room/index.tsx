@@ -1,9 +1,9 @@
-import { useRoom } from 'hooks/useRoom'
-import React, { useEffect, useRef } from 'react'
 import { useStore } from 'src/store'
+import { useNavigate } from 'react-router-dom'
+import React, { useEffect, useRef } from 'react'
 
 export default function JoinPrivateRoom() {
-  const { joinRoom } = useRoom()
+  const navigate = useNavigate()
   const [roomId, setRoomId] = React.useState('')
   const [message, setMessage] = React.useState('')
   const [allMessages, setAllMessages] = React.useState<
@@ -56,7 +56,7 @@ export default function JoinPrivateRoom() {
   }, [allMessages])
 
   const handleJoinRoom = () => {
-    joinRoom(roomId)
+    navigate(`/game/${roomId}/lobby`)
   }
 
   return (

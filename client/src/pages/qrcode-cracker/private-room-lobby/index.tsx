@@ -30,6 +30,8 @@ export default function PrivateRoomLobby() {
 
   // Send message to server
   const sendMessage = (message: string) => {
+    if (message.trim() === '') return
+
     socket?.emit('sendMessage', {
       message,
       roomId,
@@ -103,6 +105,12 @@ export default function PrivateRoomLobby() {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [allMessages])
 
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      sendMessage(message)
+    }
+  }
+
   return (
     <div className="p-5">
       <h1 className="text-2xl font-bold">Room Lobby</h1>
@@ -115,7 +123,9 @@ export default function PrivateRoomLobby() {
       ) : (
         <div>
           <div className="mb-2">
-            <h3 className="mt-5 mb-1 font-bold">Room Members:</h3>
+            <h3 className="mt-5 mb-1 font-bold">
+              Room {joinedRoom?.name} ({joinedRoom?.id}) - Members:
+            </h3>
             <ol>
               {joinedRoom?.roomMemberships.map((roomMembership, index) => (
                 <li key={roomMembership.playerId} className="flex items-center gap-2">
@@ -168,6 +178,8 @@ export default function PrivateRoomLobby() {
                 className="flex-1 bg-gray-100 px-2 rounded-l outline-none"
               />
               <button
+                onKeyDown={handleKeyDown}
+                disabled={message.trim() === ''}
                 onClick={() => sendMessage(message)}
                 className="bg-red-500 text-white px-4 rounded-r"
               >

@@ -105,12 +105,6 @@ export default function PrivateRoomLobby() {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [allMessages])
 
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter') {
-      sendMessage(message)
-    }
-  }
-
   return (
     <div className="p-5">
       <h1 className="text-2xl font-bold">Room Lobby</h1>
@@ -170,23 +164,30 @@ export default function PrivateRoomLobby() {
 
             {/* Input */}
             <div className="flex h-10 mt-2">
-              <input
-                value={message}
-                onKeyDown={handleKeyDown}
-                onChange={(e) => setMessage(e.target.value)}
-                type="text"
-                placeholder="Enter a message"
-                className="flex-1 bg-gray-100 px-2 rounded-l outline-none"
-              />
-              <button
-                disabled={message.trim() === ''}
-                onClick={() => sendMessage(message)}
-                className={`bg-red-500 text-white px-4 rounded-r ${
-                  message.trim() === '' ? 'opacity-50 cursor-not-allowed' : ''
-                }`}
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault()
+                  sendMessage(message)
+                }}
+                className="flex h-10 mt-2"
               >
-                Send
-              </button>
+                <input
+                  value={message}
+                  onChange={(e) => setMessage(e.target.value)}
+                  type="text"
+                  placeholder="Enter a message"
+                  className="flex-1 bg-gray-100 px-2 rounded-l outline-none"
+                />
+                <button
+                  disabled={message.trim() === ''}
+                  type="submit"
+                  className={`bg-red-500 text-white px-4 rounded-r ${
+                    message.trim() === '' ? 'opacity-50 cursor-not-allowed' : ''
+                  }`}
+                >
+                  Send
+                </button>
+              </form>
             </div>
 
             <button className="bg-blue-500 text-white px-4 rounded-r" onClick={leaveRoom}>

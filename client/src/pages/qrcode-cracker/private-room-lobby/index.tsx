@@ -144,7 +144,7 @@ export default function PrivateRoomLobby() {
             </ol>
           </div>
 
-          <div className="relative w-80 h-[30rem] border-2 border-blue-500 p-2 flex flex-col overflow-hidden">
+          <div className="relative w-96 h-[30rem] border-2 border-blue-500 p-2 flex flex-col overflow-hidden">
             {/* Messages */}
             <div className="flex flex-col flex-1 overflow-y-auto space-y-2 pr-1">
               {allMessages.map((msg, index) => (
@@ -187,7 +187,7 @@ export default function PrivateRoomLobby() {
               </div>
             </form>
           </div>
-          <div className="flex gap-2 w-80 mt-2">
+          <div className="flex gap-2 w-96 mt-2">
             <button className="bg-blue-500 text-white px-4 rounded h-10 w-full" onClick={leaveRoom}>
               Leave Room
             </button>

@@ -172,16 +172,18 @@ export default function PrivateRoomLobby() {
             <div className="flex h-10 mt-2">
               <input
                 value={message}
+                onKeyDown={handleKeyDown}
                 onChange={(e) => setMessage(e.target.value)}
                 type="text"
                 placeholder="Enter a message"
                 className="flex-1 bg-gray-100 px-2 rounded-l outline-none"
               />
               <button
-                onKeyDown={handleKeyDown}
                 disabled={message.trim() === ''}
                 onClick={() => sendMessage(message)}
-                className="bg-red-500 text-white px-4 rounded-r"
+                className={`bg-red-500 text-white px-4 rounded-r ${
+                  message.trim() === '' ? 'opacity-50 cursor-not-allowed' : ''
+                }`}
               >
                 Send
               </button>

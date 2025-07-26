@@ -34,27 +34,39 @@ export default function CreatePrivateRoom() {
   }, [socket])
 
   return (
-    <div className="flex flex-col w-fit">
-      <div>Create Private Room</div>
-      <input
-        type="text"
-        value={name}
-        minLength={3}
-        placeholder="Enter room name"
-        onChange={(e) => setName(e.target.value)}
-        className="w-fit h-fit bg-gray-100 p-2 rounded"
-      />
-      <input
-        type="number"
-        min={2}
-        value={maxPlayers}
-        placeholder="Enter players count"
-        onChange={(e) => setMaxPlayers(e.target.value)}
-        className="w-fit h-fit bg-gray-100 p-2 rounded"
-      />
-      <button className="bg-blue-500 text-white" onClick={handleCreateRoom}>
-        Create room
-      </button>
-    </div>
+    <form
+      onSubmit={(e) => {
+        e.preventDefault()
+        handleCreateRoom()
+      }}
+    >
+      <div className="flex flex-col w-fit">
+        <div>Create Private Room</div>
+        <input
+          type="text"
+          value={name}
+          minLength={3}
+          placeholder="Enter room name"
+          onChange={(e) => setName(e.target.value)}
+          className="w-fit h-fit bg-gray-100 p-2 rounded"
+        />
+        <input
+          type="number"
+          min={2}
+          value={maxPlayers}
+          placeholder="Enter players count"
+          onChange={(e) => setMaxPlayers(e.target.value)}
+          className="w-fit h-fit bg-gray-100 p-2 rounded"
+        />
+        <button
+          disabled={name.trim() === ''}
+          className={`bg-blue-500 text-white h-10 ${
+            name.trim() === '' ? 'opacity-50 cursor-not-allowed' : ''
+          }`}
+        >
+          Create room
+        </button>
+      </div>
+    </form>
   )
 }

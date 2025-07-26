@@ -144,16 +144,14 @@ export default function PrivateRoomLobby() {
             </ol>
           </div>
 
-          <div className="relative w-80 h-[20rem] border border-red-500 p-2 flex flex-col overflow-hidden">
+          <div className="relative w-80 h-[30rem] border-2 border-blue-500 p-2 flex flex-col overflow-hidden">
             {/* Messages */}
             <div className="flex flex-col flex-1 overflow-y-auto space-y-2 pr-1">
               {allMessages.map((msg, index) => (
                 <div
                   key={index}
                   className={`text-white p-2 rounded w-fit max-w-[60%] break-words ${
-                    msg.playerId === player?.id
-                      ? 'ml-auto h-fit bg-orange-400'
-                      : 'mr-auto bg-blue-700'
+                    msg.playerId === player?.id ? 'ml-auto h-fit bg-blue-500' : 'mr-auto bg-red-500'
                   }`}
                 >
                   <span className="font-semibold">{msg.playerName}</span>: {msg.message}
@@ -163,14 +161,13 @@ export default function PrivateRoomLobby() {
             </div>
 
             {/* Input */}
-            <div className="flex h-10 mt-2">
-              <form
-                onSubmit={(e) => {
-                  e.preventDefault()
-                  sendMessage(message)
-                }}
-                className="flex h-10 mt-2"
-              >
+            <form
+              onSubmit={(e) => {
+                e.preventDefault()
+                sendMessage(message)
+              }}
+            >
+              <div className="flex h-10 mt-2">
                 <input
                   value={message}
                   onChange={(e) => setMessage(e.target.value)}
@@ -181,20 +178,24 @@ export default function PrivateRoomLobby() {
                 <button
                   disabled={message.trim() === ''}
                   type="submit"
-                  className={`bg-red-500 text-white px-4 rounded-r ${
+                  className={`bg-red-500 text-white px-4 rounded-r h-10 ${
                     message.trim() === '' ? 'opacity-50 cursor-not-allowed' : ''
                   }`}
                 >
                   Send
                 </button>
-              </form>
-            </div>
-
-            <button className="bg-blue-500 text-white px-4 rounded-r" onClick={leaveRoom}>
+              </div>
+            </form>
+          </div>
+          <div className="flex gap-2 w-80 mt-2">
+            <button className="bg-blue-500 text-white px-4 rounded h-10 w-full" onClick={leaveRoom}>
               Leave Room
             </button>
             {isRoomAdmin && (
-              <button className="bg-blue-500 text-white px-4 rounded-r" onClick={startGame}>
+              <button
+                className="bg-blue-500 text-white px-4 rounded h-10 w-full"
+                onClick={startGame}
+              >
                 Start Game
               </button>
             )}
